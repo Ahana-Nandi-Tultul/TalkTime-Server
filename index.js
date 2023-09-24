@@ -52,11 +52,41 @@ async function run() {
 
     const userCollection = client.db('talkTime').collection('users');
 
+    const verifyInstructor = async(req, res, next)=> {
+      const email = req.decode.email;
+      const query = {email: email};
+      const result = await userCollection.findOne(query);
+      if(!result){
+        return res.status(401).send({error: {status: true, message: 'unauthorized access'}});
+      }
+      if(result.role === 'Instructor'){
+        return  res.send({isInstructor : true});
+      }
+      next();
+    }
 
+    const verifyAdmin = async(req, res, next) =>{
+      const email = req.decode.email;
+      const query = {email: email};
+      const result = await userCollection.findOne(query);
+      if(result.role === 'Admin'){
+        return  res.send({isAdmin : true});
+      }
+      next();
+    }
     // user related api
     app.get('/users',verifyJwt, async(req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
+    });
+
+    app.get('/users/:email', verifyJwt, verifyInstructor, verifyAdmin, async(req, res) => {
+      const query = {email: req.decode.email};
+      const result = await userCollection.findOne(query);
+      if(result.role === 'Student'){
+        return  res.send({isStudent : true});
+      }
+      res.status(401).send({error: {status: true, message: 'unauthorized access'}});
     })
 
     app.patch('/users/:id', verifyJwt, async(req, res) => {
