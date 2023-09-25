@@ -51,6 +51,7 @@ async function run() {
     await client.connect();
 
     const userCollection = client.db('talkTime').collection('users');
+    const classCollection = client.db('talkTime').collection('classes');
 
     const verifyInstructor = async(req, res, next)=> {
       const email = req.decode.email;
@@ -60,9 +61,8 @@ async function run() {
         return res.status(401).send({error: {status: true, message: 'unauthorized access'}});
       }
       if(result.role === 'Instructor'){
-        return  res.send({isInstructor : true});
+        next();
       }
-      next();
     }
 
     const verifyAdmin = async(req, res, next) =>{
@@ -70,9 +70,9 @@ async function run() {
       const query = {email: email};
       const result = await userCollection.findOne(query);
       if(result.role === 'Admin'){
-        return  res.send({isAdmin : true});
+        
+        next();
       }
-      next();
     }
     // user related api
     app.get('/users',verifyJwt, async(req, res) => {
@@ -80,13 +80,31 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/users/:email', verifyJwt, verifyInstructor, verifyAdmin, async(req, res) => {
+    app.get('/users/:email', verifyJwt, async(req, res) => {
+      const email = req.params.email;
+      if(email !== req.decode.email){
+        return res.status(403).send({error: {status: true, message: 'forbidden access'}});
+      }
+
       const query = {email: req.decode.email};
       const result = await userCollection.findOne(query);
-      if(result.role === 'Student'){
+
+      if(!result){
+        return res.status(401).send({error: {status: true, message: 'unauthorized access'}});
+      }
+      if(result.role === 'Instructor'){
+        return  res.send({isInstructor : true});
+      }
+      else if(result.role === 'Admin'){
+        return  res.send({isAdmin : true});
+      }
+      else if(result.role === 'Student'){
         return  res.send({isStudent : true});
       }
-      res.status(401).send({error: {status: true, message: 'unauthorized access'}});
+      else{
+        return res.status(401).send({error: {status: true, message: 'unauthorized access'}});
+      }
+
     })
 
     app.patch('/users/:id', verifyJwt, async(req, res) => {
@@ -111,7 +129,60 @@ async function run() {
       const query = {_id: new ObjectId(id)};
       const result = await userCollection.deleteOne(query);
       res.send(result);
+    });
+
+    // class related api
+    app.get('/allclasses', verifyJwt, async(req, res) => {
+      const result = await classCollection.find().toArray();
+      res.send(result);
     })
+
+    app.post('/classes', verifyJwt, verifyInstructor, async(req, res) => {
+      const newClass = req.body.newClass;
+      console.log(newClass);
+      const result = await classCollection.insertOne(newClass);
+      res.send(result);
+    });
+
+    app.patch('/classes/:id', verifyJwt, verifyAdmin, async(req, res) => {
+      const classid = req.params.id;
+      const filter = {_id: new ObjectId(classid)};
+      const status = req.body.status;
+      const newStatus = {
+        $set: {status}
+      };
+      const result = await classCollection.updateOne(filter, newStatus);
+      res.send(result);
+    });
+
+    app.put('/classes/:id', verifyJwt, verifyAdmin, async(req, res) => {
+      const classId = req.params.id;
+      const filter = {_id : new ObjectId(classId)};
+      const feedback = req.body.feedback;
+      const newFeedback = {
+        $set: {feedback}
+      };
+      const result = await classCollection.updateOne(filter, newFeedback);
+      res.send(result);
+    });
+
+    app.patch('/updateClass/:id', verifyJwt, verifyInstructor, async(req, res) => {
+      const classId = req.params.id;
+      const filter = {_id: new ObjectId(classId)};
+      const updateInfo = req.body.updateInfo;
+      const newUpdateInfo = {
+        $set : {
+          courseName: updateInfo?.courseName,
+          coursePrice : updateInfo?.coursePrice,
+          seats : updateInfo?.seats,
+          status: updateInfo?.status
+        }
+      }
+      const result = await classCollection.updateOne(filter, newUpdateInfo)
+      res.send(result);
+    })
+
+    
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
