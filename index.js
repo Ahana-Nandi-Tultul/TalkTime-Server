@@ -120,6 +120,12 @@ async function run() {
 
     app.post('/users', async(req, res) => {
         const newUser = req.body;
+        const email = newUser?.email;
+        const filter = {email: email};
+        const existUser = await userCollection.findOne(filter);
+        if(existUser){
+          return res.send({});
+        }
         const result = await userCollection.insertOne(newUser);
         res.send(result);
     })
@@ -136,6 +142,11 @@ async function run() {
       const result = await classCollection.find().toArray();
       res.send(result);
     })
+
+    app.get('/topclasses', async(req, res) => {
+      const result = await classCollection.find().sort({ enrolledStudents: -1 }).limit(6).toArray();
+      res.send(result);
+    })  
 
     app.post('/classes', verifyJwt, verifyInstructor, async(req, res) => {
       const newClass = req.body.newClass;
@@ -179,6 +190,62 @@ async function run() {
         }
       }
       const result = await classCollection.updateOne(filter, newUpdateInfo)
+      res.send(result);
+    })
+
+    // top instructors
+    app.get('/topinstructors', async(req, res) => {
+      const pipeline = [
+        {
+          $match: { role: "Instructor" }
+        },
+        {
+          $lookup: {
+            from: "classes",
+            localField: "email",
+            foreignField: "email",
+            as: "classes"
+          }
+        },
+        {
+          $unwind: "$classes"
+        },
+        {
+          $group: {
+            _id: {
+              instructorId: "$_id",
+              instructor: "$name",
+              photo: "$photo",
+              email: "$email"
+            },
+            totalEnrolledStudents: { $sum: "$classes.enrolledStudents" },
+            totalClasses: { $sum: 1 },
+            courseNames: { $push: "$classes.courseName" },
+            classIds: { $push: "$classes._id" }
+          }
+        },
+        {
+          $project: {
+            _id: "$_id.instructorId",
+            instructor: "$_id.instructor",
+            email: "$_id.email",
+            photo: "$_id.photo",
+            totalEnrolledStudents: 1,
+            totalClasses: 1,
+            courseNames: 1,
+            classIds: 1
+          }
+        },
+        {
+          $sort: { totalEnrolledStudents: -1 }
+        },
+        {
+          $limit: 6
+        }
+      ];
+      
+            
+      const result = await userCollection.aggregate(pipeline).toArray();
       res.send(result);
     })
 
