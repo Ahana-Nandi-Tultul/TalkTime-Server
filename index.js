@@ -193,6 +193,21 @@ async function run() {
       res.send(result);
     })
 
+    // instructor related api
+    app.get('/instructors/:id', async(req, res) => {
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)}
+      const result = await userCollection.findOne(filter);
+      res.send(result);
+    })
+
+    app.get('/instructors/classes/:email', async(req, res) => {
+      const email = req.params.email;
+      const filter = {email: email};
+      const result = await classCollection.find(filter).toArray();
+      res.send(result);
+    })
+
     // top instructors
     app.get('/topinstructors', async(req, res) => {
       const pipeline = [
