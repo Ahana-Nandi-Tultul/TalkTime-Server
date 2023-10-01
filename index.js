@@ -264,6 +264,37 @@ async function run() {
       res.send(result);
     })
 
+
+    // all-instructor
+    app.get('/allinstructors', async(req, res) => {
+      const pipeline = [
+          {
+            $match: { role: "Instructor" }
+          },
+          {
+            $lookup: {
+              from: "classes",
+              localField: "email",
+              foreignField: "email",
+              as: "instructorClasses"
+            }
+          },
+          {
+            $project: {
+              _id: 1,
+              instructor: "$name",
+              email: "$email",
+              photo: "$photo", // Use 'image' as 'photo'
+              totalClasses: { $size: "$instructorClasses" },
+              courseNames: "$instructorClasses.courseName"
+            }
+          }
+       ];
+
+      const result = await userCollection.aggregate(pipeline).toArray();
+      res.send(result);
+      
+    })
     
 
     // Send a ping to confirm a successful connection
