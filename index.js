@@ -52,6 +52,7 @@ async function run() {
 
     const userCollection = client.db('talkTime').collection('users');
     const classCollection = client.db('talkTime').collection('classes');
+    const cartCollection = client.db('talkTime').collection('carts');
 
     const verifyInstructor = async(req, res, next)=> {
       const email = req.decode.email;
@@ -193,6 +194,14 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/allclassesStu', async(req, res) =>{
+      const filter = {status: 'approved'};
+      const result = await classCollection.find(filter).toArray();
+      res.send(result);
+    })
+
+    
+
     // instructor related api
     app.get('/instructors/:id', async(req, res) => {
       const id = req.params.id;
@@ -294,6 +303,20 @@ async function run() {
       const result = await userCollection.aggregate(pipeline).toArray();
       res.send(result);
       
+    })
+
+    // cart related api
+    app.get('/carts/:email', async(req, res) => {
+      const email = req.params.email;
+      const filter = {email: email};
+      const result = await cartCollection.find(filter).toArray();
+      res.send(result);
+    });
+
+    app.post('/carts', verifyJwt, async(req, res) => {
+      const item = req.body.item;
+      const result = await cartCollection.insertOne(item);
+      res.send(result);
     })
     
 
