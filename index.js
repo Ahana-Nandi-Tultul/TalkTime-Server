@@ -322,15 +322,13 @@ async function run() {
     })
 
     // payments related api
-    app.get('/payments/:email',  async(req,res) => {
+    app.get('/payments/:email', verifyJwt,  async(req,res) => {
       const stuEmail = req.params.email;
-      console.log(stuEmail);
       const pipeline = [
-        // Match payments based on student email
         {
           $match: { email: stuEmail }
         },
-        // Convert classesId strings to ObjectId
+       
         {
           $addFields: {
             classesIdObjectIds: {
@@ -342,11 +340,10 @@ async function run() {
             }
           }
         },
-        // Unwind the classesIdObjectIds array
         {
           $unwind: '$classesIdObjectIds'
         },
-        // Lookup to join with the classes collection
+        
         {
           $lookup: {
             from: 'classes',
@@ -355,11 +352,9 @@ async function run() {
             as: 'classDetails'
           }
         },
-        // Unwind the classDetails array
         {
           $unwind: '$classDetails'
         },
-        // Project the desired fields
         {
           $project: {
             _id: 1,
@@ -372,22 +367,6 @@ async function run() {
             
           }
         },
-        {
-          $group: {
-            _id: "$_id",
-            totalCourseCount: { $sum: 1 }, 
-            totalPrice: { $sum: '$coursePrice' },
-            courses: {
-              $push: {
-                instructor: '$instructor',
-                coursePrice: '$coursePrice',
-                courseName: '$courseName',
-                email: '$email',
-                image: '$image'
-              }
-            }
-          }
-        },
       ];
   
       const result = await paymentCollection.aggregate(pipeline).toArray();
@@ -396,7 +375,7 @@ async function run() {
     })
     app.post('/create-payment-intent', verifyJwt, async(req, res) => {
       const {price} = req.body;
-      const amount = price * 100;
+      const amount = parseInt(price * 100);
       const payment = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
