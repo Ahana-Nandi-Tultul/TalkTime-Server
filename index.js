@@ -3,6 +3,7 @@ const app = express();
 var jwt = require('jsonwebtoken');
 const cors = require('cors');
 require('dotenv').config();
+const stripe = require('stripe')(process.env.PAYMENT_GATEWAY_SECRET);
 const port = process.env.PORT || 3000;
 
 app.use(cors());
@@ -53,6 +54,7 @@ async function run() {
     const userCollection = client.db('talkTime').collection('users');
     const classCollection = client.db('talkTime').collection('classes');
     const cartCollection = client.db('talkTime').collection('carts');
+    const paymentCollection = client.db('talkTime').collection('payments');
 
     const verifyInstructor = async(req, res, next)=> {
       const email = req.decode.email;
@@ -308,7 +310,7 @@ async function run() {
     // cart related api
     app.get('/carts/:email', async(req, res) => {
       const email = req.params.email;
-      const filter = {email: email};
+      const filter = {studentEmail: email};
       const result = await cartCollection.find(filter).toArray();
       res.send(result);
     });
@@ -317,6 +319,30 @@ async function run() {
       const item = req.body.item;
       const result = await cartCollection.insertOne(item);
       res.send(result);
+    })
+
+    // payments related api
+    app.post('/create-payment-intent', verifyJwt, async(req, res) => {
+      const {price} = req.body;
+      const amount = price * 100;
+      const payment = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types : ['card']
+      });
+      res.send({
+        clientSecret : payment.client_secret
+      })
+    });
+
+    app.post('/payments', verifyJwt, async(req, res) => {
+      const payment = req.body;
+      const insertResult = await paymentCollection.insertOne(payment);
+      const query = {
+        _id: {$in : payment.cartItems.map(id => new ObjectId(id))}
+      };
+      const deleteResult = await cartCollection.deleteMany(query);
+      res.send({insertResult, deleteResult});
     })
     
 
