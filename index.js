@@ -49,7 +49,7 @@ app.post('/jwt', (req, res) => {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const userCollection = client.db('talkTime').collection('users');
     const classCollection = client.db('talkTime').collection('classes');
@@ -418,7 +418,7 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('Time is talikg in different languages');
+    res.send('Time is talking in different languages');
 })
 
 app.listen(port, () => {
