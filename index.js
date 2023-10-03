@@ -78,7 +78,7 @@ async function run() {
       }
     }
     // user related api
-    app.get('/users',verifyJwt, async(req, res) => {
+    app.get('/users',verifyJwt, verifyAdmin, async(req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
@@ -110,7 +110,7 @@ async function run() {
 
     })
 
-    app.patch('/users/:id', verifyJwt, async(req, res) => {
+    app.patch('/users/:id', verifyJwt, verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const role = req.body;
       const filter = {_id: new ObjectId(id)};
@@ -133,7 +133,7 @@ async function run() {
         res.send(result);
     })
 
-    app.delete('/users/:id', async(req, res) => {
+    app.delete('/users/:id', verifyJwt, verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await userCollection.deleteOne(query);
@@ -141,7 +141,7 @@ async function run() {
     });
 
     // class related api
-    app.get('/allclasses', verifyJwt, async(req, res) => {
+    app.get('/allclasses', verifyJwt, verifyAdmin, async(req, res) => {
       const result = await classCollection.find().toArray();
       res.send(result);
     })
@@ -153,11 +153,12 @@ async function run() {
 
     app.post('/classes', verifyJwt, verifyInstructor, async(req, res) => {
       const newClass = req.body.newClass;
-      console.log(newClass);
+      // console.log(newClass);
       const result = await classCollection.insertOne(newClass);
       res.send(result);
     });
 
+    // class approve, denied
     app.patch('/classes/:id', verifyJwt, verifyAdmin, async(req, res) => {
       const classid = req.params.id;
       const filter = {_id: new ObjectId(classid)};
@@ -169,6 +170,7 @@ async function run() {
       res.send(result);
     });
 
+    // give feedback on class info
     app.put('/classes/:id', verifyJwt, verifyAdmin, async(req, res) => {
       const classId = req.params.id;
       const filter = {_id : new ObjectId(classId)};
@@ -180,6 +182,7 @@ async function run() {
       res.send(result);
     });
 
+    // change class information 
     app.patch('/updateClass/:id', verifyJwt, verifyInstructor, async(req, res) => {
       const classId = req.params.id;
       const filter = {_id: new ObjectId(classId)};
@@ -269,8 +272,7 @@ async function run() {
           $limit: 6
         }
       ];
-      
-            
+           
       const result = await userCollection.aggregate(pipeline).toArray();
       res.send(result);
     })
@@ -308,7 +310,7 @@ async function run() {
     })
 
     // cart related api
-    app.get('/carts/:email',  async(req, res) => {
+    app.get('/carts/:email', verifyJwt,  async(req, res) => {
       const email = req.params.email;
       const filter = {studentEmail: email};
       const result = await cartCollection.find(filter).toArray();
@@ -318,6 +320,13 @@ async function run() {
     app.post('/carts', verifyJwt, async(req, res) => {
       const item = req.body.item;
       const result = await cartCollection.insertOne(item);
+      res.send(result);
+    });
+
+    app.delete('/carts/:id', verifyJwt, async(req, res) => {
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const result = await cartCollection.deleteOne(filter);
       res.send(result);
     })
 
