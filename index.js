@@ -56,6 +56,7 @@ async function run() {
     const cartCollection = client.db('talkTime').collection('carts');
     const paymentCollection = client.db('talkTime').collection('payments');
 
+
     const verifyInstructor = async(req, res, next)=> {
       const email = req.decode.email;
       const query = {email: email};
@@ -77,6 +78,14 @@ async function run() {
         next();
       }
     }
+
+    app.get('/allinnumbers', async(req, res) => {
+      const insResult = await userCollection.countDocuments({role: 'Instructor'});
+      const stuResult = await userCollection.countDocuments({role: 'Student'});
+      const courseResult = await classCollection.countDocuments({status: 'approved'});
+      res.send({insResult, stuResult, courseResult});
+    })
+
     // user related api
     app.get('/users',verifyJwt, verifyAdmin, async(req, res) => {
       const result = await userCollection.find().toArray();
@@ -150,6 +159,13 @@ async function run() {
       const result = await classCollection.find().sort({ enrolledStudents: -1 }).limit(6).toArray();
       res.send(result);
     })  
+
+    app.get('/classes/:email', async(req, res) => {
+      const email = req.params.email;
+      const query = {email : email};
+      const result = await classCollection.find(query).toArray();
+      res.send(result);
+    })
 
     app.post('/classes', verifyJwt, verifyInstructor, async(req, res) => {
       const newClass = req.body.newClass;
