@@ -233,7 +233,7 @@ async function run() {
 
     app.get('/instructors/classes/:email', async(req, res) => {
       const email = req.params.email;
-      const filter = {email: email};
+      const filter = {email: email, status: 'approved'};
       const result = await classCollection.find(filter).toArray();
       res.send(result);
     })
@@ -298,7 +298,7 @@ async function run() {
     app.get('/allinstructors', async(req, res) => {
       const pipeline = [
           {
-            $match: { role: "Instructor" }
+            $match: { role: "Instructor"}
           },
           {
             $lookup: {
@@ -313,9 +313,18 @@ async function run() {
               _id: 1,
               instructor: "$name",
               email: "$email",
-              photo: "$photo", // Use 'image' as 'photo'
+              photo: "$photo", 
+              status: { $arrayElemAt: ["$instructorClasses.status", 0] },
               totalClasses: { $size: "$instructorClasses" },
-              courseNames: "$instructorClasses.courseName"
+              courseNames: {
+                $cond: {
+                  if: { $eq: [{ $arrayElemAt: ["$instructorClasses.status", 0] }, "approved"] },  
+                  then: "$instructorClasses.courseName", 
+                  else: []
+                }
+          
+              }
+              
             }
           }
        ];
