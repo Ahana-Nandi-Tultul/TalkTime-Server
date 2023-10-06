@@ -167,6 +167,13 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/insClass/:email', verifyJwt, verifyInstructor, async(req, res) =>{
+      const email = req.params.email;
+      const query = {email : email};
+      const result = await classCollection.find(query).toArray();
+      res.send(result);
+    })
+
     app.post('/classes', verifyJwt, verifyInstructor, async(req, res) => {
       const newClass = req.body.newClass;
       // console.log(newClass);
