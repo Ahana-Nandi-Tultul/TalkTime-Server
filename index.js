@@ -437,13 +437,18 @@ async function run() {
       res.send({insertResult, deleteResult});
     })
 
-    app.get("/admin_stats", async(req, res) => {
+    app.get("/admin_stats", verifyJwt, verifyAdmin, async(req, res) => {
       const payments = await paymentCollection.find().toArray();
       const totalRevenue = payments.reduce((sum, item) => item.price + sum, 0);
       const students = await userCollection.countDocuments({role: "Student"});
       const instructors = await userCollection.countDocuments({role: "Instructor"});
       const classes = await classCollection.countDocuments();
       const deniedClasses = await classCollection.countDocuments({status: "denied"});
+      
+      res.send({totalRevenue, students, instructors, classes, deniedClasses});
+    })
+
+    app.get('/payments_chartData',verifyJwt, verifyAdmin, async(req, res) => {
       const pipeline = [
         {
           $addFields: {
@@ -485,7 +490,7 @@ async function run() {
         },
       ];
       const studentWiseClasses = await paymentCollection.aggregate(pipeline).toArray();
-      res.send({totalRevenue, students, instructors, classes, deniedClasses, studentWiseClasses});
+      res.send(studentWiseClasses);
     })
     
 
