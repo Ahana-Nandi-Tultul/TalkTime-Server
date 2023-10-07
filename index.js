@@ -436,6 +436,57 @@ async function run() {
       const deleteResult = await cartCollection.deleteMany(query);
       res.send({insertResult, deleteResult});
     })
+
+    app.get("/admin_stats", async(req, res) => {
+      const payments = await paymentCollection.find().toArray();
+      const totalRevenue = payments.reduce((sum, item) => item.price + sum, 0);
+      const students = await userCollection.countDocuments({role: "Student"});
+      const instructors = await userCollection.countDocuments({role: "Instructor"});
+      const classes = await classCollection.countDocuments();
+      const deniedClasses = await classCollection.countDocuments({status: "denied"});
+      const pipeline = [
+        {
+          $addFields: {
+            classesIdObjectIds: {
+              $map: {
+                input: '$classesId',
+                as: 'classId',
+                in: { $toObjectId: '$$classId' }
+              }
+            }
+          }
+        },
+        {
+          $unwind: '$classesIdObjectIds'
+        },
+        
+        {
+          $lookup: {
+            from: 'classes',
+            localField: 'classesIdObjectIds',
+            foreignField: '_id',
+            as: 'classDetails'
+          }
+        },
+        {
+          $unwind: '$classDetails'
+        },
+        {
+          $project: {
+            _id: 1,
+            instructor: '$classDetails.instructor',
+            coursePrice: '$classDetails.coursePrice',
+            courseName: '$classDetails.courseName',
+            InstructrorEmail: '$classDetails.email',
+            coursePrice: '$classDetails.coursePrice',
+            enrolledStudents : "$classDetails.enrolledStudents"
+            
+          }
+        },
+      ];
+      const studentWiseClasses = await paymentCollection.aggregate(pipeline).toArray();
+      res.send({totalRevenue, students, instructors, classes, deniedClasses, studentWiseClasses});
+    })
     
 
     // Send a ping to confirm a successful connection
