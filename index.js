@@ -430,11 +430,18 @@ async function run() {
     app.post('/payments', verifyJwt, async(req, res) => {
       const payment = req.body;
       const insertResult = await paymentCollection.insertOne(payment);
+      for (const classId of payment.classIds) {
+        // console.log(classId);
+        await classCollection.updateOne(
+          { _id: new ObjectId(classId), seats: { $gt: 0 } },
+          { $inc: { seats: -1, enrolledStudents: 1 } }
+        );
+      }
       const query = {
         _id: {$in : payment.cartItems.map(id => new ObjectId(id))}
       };
       const deleteResult = await cartCollection.deleteMany(query);
-      res.send({insertResult, deleteResult});
+      res.send({deleteResult});
     })
 
     app.get("/admin_stats", verifyJwt, verifyAdmin, async(req, res) => {
@@ -493,12 +500,63 @@ async function run() {
       res.send(studentWiseClasses);
     })
     
-    app.get('/instructor_stats/:email', async(req, res) => {
+    app.get('/instructor_stats/:email', verifyJwt, verifyInstructor, async(req, res) => {
       const email = req.params.email;
       const allclassesNum = await classCollection.countDocuments({email: email});
       const allclasses = await classCollection.find({email: email}).toArray();
       const students = allclasses.reduce((sum, item) => item.enrolledStudents + sum, 0);
       res.send({allclassesNum, students, allclasses});
+    });
+
+    app.get('/student_stats/:email', async(req, res) => {
+      const email = req.params.email;
+      const pipeline = [
+        {
+          $match: { email: email }
+        },
+       
+        {
+          $addFields: {
+            classesIdObjectIds: {
+              $map: {
+                input: '$classesId',
+                as: 'classId',
+                in: { $toObjectId: '$$classId' }
+              }
+            }
+          }
+        },
+        {
+          $unwind: '$classesIdObjectIds'
+        },
+        
+        {
+          $lookup: {
+            from: 'classes',
+            localField: 'classesIdObjectIds',
+            foreignField: '_id',
+            as: 'classDetails'
+          }
+        },
+        {
+          $unwind: '$classDetails'
+        },
+        {
+          $project: {
+            _id: 1,
+            instructor: '$classDetails.instructor',
+            coursePrice: '$classDetails.coursePrice',
+            courseName: '$classDetails.courseName',
+            InstructrorEmail: '$classDetails.email',
+            image: '$classDetails.image',
+            coursePrice: '$classDetails.coursePrice'
+            
+          }
+        },
+      ];
+  
+      const result = await paymentCollection.aggregate(pipeline).toArray();
+      res.send(result);
     })
 
     // Send a ping to confirm a successful connection
