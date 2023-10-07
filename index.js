@@ -430,7 +430,7 @@ async function run() {
     app.post('/payments', verifyJwt, async(req, res) => {
       const payment = req.body;
       const insertResult = await paymentCollection.insertOne(payment);
-      for (const classId of payment.classIds) {
+      for (const classId of payment.classesId) {
         // console.log(classId);
         await classCollection.updateOne(
           { _id: new ObjectId(classId), seats: { $gt: 0 } },
