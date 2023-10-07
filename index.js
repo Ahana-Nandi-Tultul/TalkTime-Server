@@ -493,6 +493,13 @@ async function run() {
       res.send(studentWiseClasses);
     })
     
+    app.get('/instructor_stats/:email', async(req, res) => {
+      const email = req.params.email;
+      const allclassesNum = await classCollection.countDocuments({email: email});
+      const allclasses = await classCollection.find({email: email}).toArray();
+      const students = allclasses.reduce((sum, item) => item.enrolledStudents + sum, 0);
+      res.send({allclassesNum, students, allclasses});
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
