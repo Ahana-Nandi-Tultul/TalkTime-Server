@@ -12,5 +12,8 @@
             "dest": "/", 
             "methods": ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
         }
-    ]
+    ],
+    "projectSettings": {
+    "framework": "node"
+  }
 }
